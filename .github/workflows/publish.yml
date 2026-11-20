@@ -1,0 +1,46 @@
+name: Publish the package
+
+# The feed holds the Chocolatey packages.  A package is built from the latest
+# published Osprey release: `releases/latest` skips pre-releases, so the feed
+# only moves on a final release.
+on:
+  schedule:
+    - cron: "53 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: grayslawson/osprey
+          path: upstream
+          ref: main
+      - uses: NuGet/setup-nuget@v2
+      - name: Find the latest release
+        id: release
+        run: |
+          set -euo pipefail
+          tag="$(curl -fsSL https://api.github.com/repos/grayslawson/osprey/releases/latest \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
+          version="${tag#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build the package
+        run: upstream/scripts/sync-chocolatey-feed.sh upstream . "${{ steps.release.outputs.version }}"
+      - name: Commit the package
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'The feed already has this package.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "chore: osprey ${{ steps.release.outputs.version }}"
+          git push
