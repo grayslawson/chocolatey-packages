@@ -21,12 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      # The upstream checkout lives outside the repository, so it cannot end
-      # up in the feed.
+      # The upstream checkout is ignored by the feed's .gitignore, so it
+      # cannot end up in the feed itself.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: grayslawson/osprey
-          path: ${{ runner.temp }}/upstream
+          path: upstream
           ref: main
       - uses: NuGet/setup-nuget@v2
       - name: Find the release to package
@@ -48,7 +48,7 @@ jobs:
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
       - name: Build the package
         if: steps.release.outputs.version != ''
-        run: ${{ runner.temp }}/upstream/scripts/sync-chocolatey-feed.sh ${{ runner.temp }}/upstream . "${{ steps.release.outputs.version }}"
+        run: upstream/scripts/sync-chocolatey-feed.sh upstream . "${{ steps.release.outputs.version }}"
       - name: Commit the package
         if: steps.release.outputs.version != ''
         run: |
