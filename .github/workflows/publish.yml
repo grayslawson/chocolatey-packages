@@ -28,7 +28,6 @@ jobs:
           repository: grayslawson/osprey
           path: upstream
           ref: main
-      - uses: NuGet/setup-nuget@v2
       - name: Find the release to package
         id: release
         env:
