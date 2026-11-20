@@ -1,8 +1,8 @@
 name: Publish the package
 
-# The feed holds the Chocolatey packages.  A package is built from the latest
-# published Osprey release: `releases/latest` skips pre-releases, so the feed
-# only moves on a final release.
+# The feed holds the Chocolatey packages.  A package is built from a published
+# Osprey release: by default the latest final release, or a version named by
+# hand.
 on:
   schedule:
     - cron: "53 6 * * *"
@@ -21,13 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # The upstream checkout lives outside the repository, so it cannot end
+      # up in the feed.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: grayslawson/osprey
-          path: upstream
+          path: ${{ runner.temp }}/upstream
           ref: main
       - uses: NuGet/setup-nuget@v2
-      - name: Find the latest release
+      - name: Find the release to package
         id: release
         env:
           INPUT_VERSION: ${{ inputs.version }}
@@ -43,12 +45,12 @@ jobs:
             echo 'No final release yet; the feed stays where it is.' >&2
             exit 0
           fi
-          version="${tag#v}"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
       - name: Build the package
         if: steps.release.outputs.version != ''
-        run: upstream/scripts/sync-chocolatey-feed.sh upstream . "${{ steps.release.outputs.version }}"
+        run: ${{ runner.temp }}/upstream/scripts/sync-chocolatey-feed.sh ${{ runner.temp }}/upstream . "${{ steps.release.outputs.version }}"
       - name: Commit the package
+        if: steps.release.outputs.version != ''
         run: |
           set -euo pipefail
           git add -A
